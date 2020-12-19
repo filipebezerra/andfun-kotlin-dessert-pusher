@@ -211,6 +211,17 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
         // TODO Permanently save data
     }
 
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        // region Lifecycle Logging
+        if (restarted) {
+            Timber.i("onRestoreInstanceState(savedInstanceState) called after onRestart() after ${millisBetweenRestartTimeAndNow()}")
+        } else {
+            Timber.i("onRestoreInstanceState(savedInstanceState) called after ${millisBetweenCreateTimeAndNow()}")
+        }
+        // endregion
+        super.onRestoreInstanceState(savedInstanceState)
+    }
+
     override fun onConfigurationChanged(newConfig: Configuration) {
         // region Lifecycle Logging
         Timber.i("onConfigurationChanged() called")
@@ -254,12 +265,14 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        // region Lifecycle Logging
         // Warning: Prior to Android P onSaveInstanceState() was called before onStop() callback
         Timber.i("onSaveInstanceState(outState) called after onStop() after ${millisBetweenStopTimeAndNow()}")
-        super.onSaveInstanceState(outState)
+        // endregion
         outState.putInt(KEY_REVENUE, revenue)
         outState.putInt(KEY_AMOUNT_SOLD, dessertsSold)
         outState.putInt(KEY_DESSERT_TIMER_SECONDS, dessertTimer.secondsCount)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onLowMemory() {
