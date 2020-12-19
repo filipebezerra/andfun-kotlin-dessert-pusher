@@ -84,6 +84,8 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
     )
     private var currentDessert = allDesserts[0]
 
+    private lateinit var dessertTimer: DessertTimer
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // region Lifecycle Logging
         createTime = LocalDateTime.now()
@@ -105,6 +107,8 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
 
         // Make sure the correct dessert is showing
         binding.dessertButton.setImageResource(currentDessert.imageId)
+
+        dessertTimer = DessertTimer()
     }
 
     /**
@@ -197,6 +201,7 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
         super.onStart()
         // TODO Initialize/Start objects that only run when Activity on screen
         // TODO Permanently save data
+        dessertTimer.startTimer()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -239,6 +244,7 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
         // endregion
         super.onStop()
         // TODO Uninitialize/Stop objects that only run when Activity on screen
+        dessertTimer.stopTimer()
     }
 
     override fun onLowMemory() {
