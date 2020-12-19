@@ -101,6 +101,13 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
             onDessertClicked()
         }
 
+        var timerSecondsCount = 0
+        if (savedInstanceState != null) {
+            revenue = savedInstanceState.getInt(KEY_REVENUE, 0)
+            dessertsSold = savedInstanceState.getInt(KEY_AMOUNT_SOLD, 0)
+            timerSecondsCount = savedInstanceState.getInt(KEY_DESSERT_TIMER_SECONDS, 0)
+        }
+
         // Set the TextViews to the right values
         binding.revenue = revenue
         binding.amountSold = dessertsSold
@@ -109,6 +116,7 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
         binding.dessertButton.setImageResource(currentDessert.imageId)
 
         dessertTimer = DessertTimer(lifecycle)
+        dessertTimer.secondsCount = timerSecondsCount
     }
 
     /**
@@ -245,6 +253,15 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
         // TODO Uninitialize/Stop objects that only run when Activity on screen
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        // Warning: Prior to Android P onSaveInstanceState() was called before onStop() callback
+        Timber.i("onSaveInstanceState(outState) called after onStop() after ${millisBetweenStopTimeAndNow()}")
+        super.onSaveInstanceState(outState)
+        outState.putInt(KEY_REVENUE, revenue)
+        outState.putInt(KEY_AMOUNT_SOLD, dessertsSold)
+        outState.putInt(KEY_DESSERT_TIMER_SECONDS, dessertTimer.secondsCount)
+    }
+
     override fun onLowMemory() {
         // region Lifecycle Logging
         lowMemoryTime = LocalDateTime.now()
@@ -282,4 +299,10 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
     private fun millisBetweenStopTimeAndNow() =
             "${ChronoUnit.MILLIS.between(stopTime, LocalDateTime.now())}ms"
     // endregion
+
+    companion object {
+        private const val KEY_REVENUE = "com.example.android.dessertpusher.REVENUE"
+        private const val KEY_AMOUNT_SOLD = "com.example.android.dessertpusher.AMOUNT_SOLD"
+        private const val KEY_DESSERT_TIMER_SECONDS = "com.example.android.dessertpusher.DESSERT_TIMER_SECONDS"
+    }
 }
