@@ -49,15 +49,15 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
     data class Dessert(val imageId: Int, val price: Int, val startProductionAmount: Int)
 
     // region Lifecycle Logging
-    private lateinit var createTime: LocalDateTime
+    private var createTime: LocalDateTime? = null
 
-    private lateinit var pauseTime: LocalDateTime
+    private var pauseTime: LocalDateTime? = null
 
-    private lateinit var restartTime: LocalDateTime
+    private var restartTime: LocalDateTime? = null
 
-    private lateinit var lowMemoryTime: LocalDateTime
+    private var lowMemoryTime: LocalDateTime? = null
 
-    private lateinit var stopTime: LocalDateTime
+    private var stopTime: LocalDateTime? = null
 
     private var restarted: Boolean = false
 
@@ -108,7 +108,7 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
         // Make sure the correct dessert is showing
         binding.dessertButton.setImageResource(currentDessert.imageId)
 
-        dessertTimer = DessertTimer()
+        dessertTimer = DessertTimer(lifecycle)
     }
 
     /**
@@ -201,7 +201,6 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
         super.onStart()
         // TODO Initialize/Start objects that only run when Activity on screen
         // TODO Permanently save data
-        dessertTimer.startTimer()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -244,7 +243,6 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
         // endregion
         super.onStop()
         // TODO Uninitialize/Stop objects that only run when Activity on screen
-        dessertTimer.stopTimer()
     }
 
     override fun onLowMemory() {
