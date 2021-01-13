@@ -17,6 +17,7 @@
 package com.example.android.dessertpusher
 
 import android.content.ActivityNotFoundException
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -26,6 +27,9 @@ import androidx.core.app.ShareCompat
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.LifecycleObserver
 import com.example.android.dessertpusher.databinding.ActivityMainBinding
+import timber.log.Timber
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 
 class MainActivity : AppCompatActivity(), LifecycleObserver {
 
@@ -43,6 +47,24 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
      * the dessert starts to be produced.
      */
     data class Dessert(val imageId: Int, val price: Int, val startProductionAmount: Int)
+
+    // region Lifecycle Logging
+    private var createTime: LocalDateTime? = null
+
+    private var pauseTime: LocalDateTime? = null
+
+    private var restartTime: LocalDateTime? = null
+
+    private var lowMemoryTime: LocalDateTime? = null
+
+    private var stopTime: LocalDateTime? = null
+
+    private var restarted: Boolean = false
+
+    private var paused: Boolean = false
+
+    private var showingDialog: Boolean = false
+    // endregion
 
     // Create a list of all desserts, in order of when they start being produced
     private val allDesserts = listOf(
@@ -62,7 +84,14 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
     )
     private var currentDessert = allDesserts[0]
 
+    private lateinit var dessertTimer: DessertTimer
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        // region Lifecycle Logging
+        createTime = LocalDateTime.now()
+        restarted = false
+        Timber.i("onCreate() called at $createTime")
+        // endregion
         super.onCreate(savedInstanceState)
 
         // Use Data Binding to get reference to the views
@@ -72,12 +101,22 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
             onDessertClicked()
         }
 
+        var timerSecondsCount = 0
+        if (savedInstanceState != null) {
+            revenue = savedInstanceState.getInt(KEY_REVENUE, 0)
+            dessertsSold = savedInstanceState.getInt(KEY_AMOUNT_SOLD, 0)
+            timerSecondsCount = savedInstanceState.getInt(KEY_DESSERT_TIMER_SECONDS, 0)
+        }
+
         // Set the TextViews to the right values
         binding.revenue = revenue
         binding.amountSold = dessertsSold
 
         // Make sure the correct dessert is showing
         binding.dessertButton.setImageResource(currentDessert.imageId)
+
+        dessertTimer = DessertTimer(lifecycle)
+        dessertTimer.secondsCount = timerSecondsCount
     }
 
     /**
@@ -129,7 +168,9 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
                 .intent
         try {
             startActivity(shareIntent)
+            showingDialog = true
         } catch (ex: ActivityNotFoundException) {
+            showingDialog = false
             Toast.makeText(this, getString(R.string.sharing_not_available),
                     Toast.LENGTH_LONG).show()
         }
@@ -145,5 +186,136 @@ class MainActivity : AppCompatActivity(), LifecycleObserver {
             R.id.shareMenuButton -> onShare()
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    override fun onRestart() {
+        // region Lifecycle Logging
+        restartTime = LocalDateTime.now()
+        restarted = true
+        Timber.i("onRestart() called at $restartTime")
+        // endregion
+        super.onRestart()
+        // TODO Put anything that runs only if not being created
+    }
+
+    override fun onStart() {
+        // region Lifecycle Logging
+        if (restarted) {
+            Timber.i("onStart() called after onRestart() after ${millisBetweenRestartTimeAndNow()}")
+        } else {
+            Timber.i("onStart() called after ${millisBetweenCreateTimeAndNow()}")
+        }
+        // endregion
+        super.onStart()
+        // TODO Initialize/Start objects that only run when Activity on screen
+        // TODO Permanently save data
+    }
+
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        // region Lifecycle Logging
+        if (restarted) {
+            Timber.i("onRestoreInstanceState(savedInstanceState) called after onRestart() after ${millisBetweenRestartTimeAndNow()}")
+        } else {
+            Timber.i("onRestoreInstanceState(savedInstanceState) called after ${millisBetweenCreateTimeAndNow()}")
+        }
+        // endregion
+        super.onRestoreInstanceState(savedInstanceState)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        // region Lifecycle Logging
+        Timber.i("onConfigurationChanged() called")
+        // endregion
+        super.onConfigurationChanged(newConfig)
+    }
+
+    override fun onResume() {
+        // region Lifecycle Logging
+        when {
+            paused && showingDialog -> {
+                paused = false
+                showingDialog = false
+                Timber.i("onResume() called after onPause()")
+            }
+            restarted ->
+                Timber.i("onResume() called after onRestart() after ${millisBetweenRestartTimeAndNow()}")
+            else -> Timber.i("onResume() called after ${millisBetweenCreateTimeAndNow()}")
+        }
+        // endregion
+        super.onResume()
+    }
+
+    override fun onPause() {
+        // region Lifecycle Logging
+        paused = true
+        pauseTime = LocalDateTime.now()
+        Timber.i("onPause() called at $pauseTime")
+        // endregion
+        super.onPause()
+        // TODO Blocks UI from drawing; keep this light-weight
+    }
+
+    override fun onStop() {
+        // region Lifecycle Logging
+        stopTime = LocalDateTime.now()
+        Timber.i("onStop() called after ${millisBetweenPauseTimeAndNow()}")
+        // endregion
+        super.onStop()
+        // TODO Uninitialize/Stop objects that only run when Activity on screen
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        // region Lifecycle Logging
+        // Warning: Prior to Android P onSaveInstanceState() was called before onStop() callback
+        Timber.i("onSaveInstanceState(outState) called after onStop() after ${millisBetweenStopTimeAndNow()}")
+        // endregion
+        outState.putInt(KEY_REVENUE, revenue)
+        outState.putInt(KEY_AMOUNT_SOLD, dessertsSold)
+        outState.putInt(KEY_DESSERT_TIMER_SECONDS, dessertTimer.secondsCount)
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun onLowMemory() {
+        // region Lifecycle Logging
+        lowMemoryTime = LocalDateTime.now()
+        Timber.i("onLowMemory() called at $lowMemoryTime}")
+        // endregion
+        super.onLowMemory()
+    }
+
+    override fun onDestroy() {
+        // region Lifecycle Logging
+        @Suppress("SENSELESS_COMPARISON")
+        when {
+            lowMemoryTime != null ->
+                Timber.i("onDestroy() called after onLowMemory() after ${millisBetweenLowMemoryTimeAndNow()}")
+            else ->
+                Timber.i("onDestroy() called after onStop() after ${millisBetweenStopTimeAndNow()}")
+        }
+        // endregion
+        super.onDestroy()
+    }
+
+    // region Lifecycle Logging
+    private fun millisBetweenCreateTimeAndNow() =
+            "${ChronoUnit.MILLIS.between(createTime, LocalDateTime.now())}ms"
+
+    private fun millisBetweenRestartTimeAndNow() =
+            "${ChronoUnit.MILLIS.between(restartTime, LocalDateTime.now())}ms"
+
+    private fun millisBetweenPauseTimeAndNow() =
+            "${ChronoUnit.MILLIS.between(pauseTime, LocalDateTime.now())}ms"
+
+    private fun millisBetweenLowMemoryTimeAndNow() =
+            "${ChronoUnit.MILLIS.between(lowMemoryTime, LocalDateTime.now())}ms"
+
+    private fun millisBetweenStopTimeAndNow() =
+            "${ChronoUnit.MILLIS.between(stopTime, LocalDateTime.now())}ms"
+    // endregion
+
+    companion object {
+        private const val KEY_REVENUE = "com.example.android.dessertpusher.REVENUE"
+        private const val KEY_AMOUNT_SOLD = "com.example.android.dessertpusher.AMOUNT_SOLD"
+        private const val KEY_DESSERT_TIMER_SECONDS = "com.example.android.dessertpusher.DESSERT_TIMER_SECONDS"
     }
 }
